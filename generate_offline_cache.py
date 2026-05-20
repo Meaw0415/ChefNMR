@@ -23,15 +23,16 @@ from hydra import compose, initialize_config_dir
 from lightning.fabric.utilities.seed import seed_everything
 
 
-CHEFNMR_DIR = Path(os.environ.get("CHEFNMR_DIR", ""))
-if not CHEFNMR_DIR:
-    raise EnvironmentError("Please set CHEFNMR_DIR to your local ChefNMR repo path.")
+REPO_ROOT = Path(__file__).resolve().parent
+DEFAULT_LOCAL_CHEFNMR_DIR = REPO_ROOT / 'vendor' / 'chefnmr'
+CHEFNMR_DIR = Path(os.environ.get("CHEFNMR_DIR", str(DEFAULT_LOCAL_CHEFNMR_DIR)))
+if not CHEFNMR_DIR.exists():
+    raise EnvironmentError(f"ChefNMR source repo not found: {CHEFNMR_DIR}. Run ./setup_repo.sh or set CHEFNMR_DIR explicitly.")
 if str(CHEFNMR_DIR) not in sys.path:
     sys.path.insert(0, str(CHEFNMR_DIR))
 
-CHEFNMR_CKPT_DIR = Path(os.environ.get("CHEFNMR_CKPT_DIR", ""))
-if not CHEFNMR_CKPT_DIR:
-    raise EnvironmentError("Please set CHEFNMR_CKPT_DIR to your checkpoint/output directory.")
+CHEFNMR_CKPT_DIR = Path(os.environ.get("CHEFNMR_CKPT_DIR", str(REPO_ROOT / 'checkpoints')))
+CHEFNMR_CKPT_DIR.mkdir(parents=True, exist_ok=True)
 
 CHEFNMR_GPU = os.environ.get("CHEFNMR_CUDA_VISIBLE_DEVICES", "0")
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", CHEFNMR_GPU)
@@ -63,6 +64,14 @@ DEFAULT_CKPT = {
     "uspto": CHEFNMR_CKPT_DIR / "US-H10kC80-L128-epoch3099.ckpt",
     "spectrabase": CHEFNMR_CKPT_DIR / "SB-H10kC80-L128-epoch5249.ckpt",
     "spectranp": CHEFNMR_CKPT_DIR / "NP-H10kC10k-L64-epoch18149.ckpt",
+}
+
+CHEFNMR_DATA_ROOT = Path(os.environ.get("CHEFNMR_DATA_ROOT", str(CHEFNMR_CKPT_DIR)))
+
+DEFAULT_DATADIR = {
+    "uspto": CHEFNMR_DATA_ROOT / "uspto",
+    "spectrabase": CHEFNMR_DATA_ROOT / "spectrabase",
+    "spectranp": CHEFNMR_DATA_ROOT / "spectranp",
 }
 
 
@@ -175,6 +184,7 @@ def _compose_cfg(
             config_name="config",
             overrides=[
                 f"+data={DEFAULT_DATA_CONFIG[dataset]}",
+                f"dataset_args.datadir={DEFAULT_DATADIR[dataset]}",
                 f"+condition={DEFAULT_CONDITION[dataset]}",
                 f"+model={DEFAULT_MODEL[dataset]}",
                 "+embedder=hybrid-baseline",
